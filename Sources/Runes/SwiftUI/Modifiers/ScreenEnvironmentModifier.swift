@@ -9,7 +9,7 @@ import SwiftUI
 import Observation
 
 @Observable
-public final class ScreenEnvironment {
+public final class ScreenEnvironment: @unchecked Sendable {
     var screenSize: CGSize = .zero
     var safeAreaScreenSize: CGSize = .zero
     var safeAreaInsets: EdgeInsets = .init()

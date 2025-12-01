@@ -23,6 +23,9 @@ public protocol OptionalProtocol {
     /// ```
     /// This is somewhat more performant than using the nil coalescing operator and its RHS autoclosure.
     var hasValue: Bool { get }
+
+    var isNil: Bool { get }
+    var isNotNil: Bool { get }
 }
 
 extension Optional: OptionalProtocol {
@@ -33,6 +36,14 @@ extension Optional: OptionalProtocol {
         case .none:
             false
         }
+    }
+
+    @inlinable public var isNil: Bool {
+        self == nil
+    }
+
+    @inlinable public var isNotNil: Bool {
+        self != nil
     }
 }
 
@@ -55,6 +66,14 @@ extension Optional where Wrapped: RangeReplaceableCollection {
         case .none:
             Wrapped()
         }
+    }
+
+    @inlinable var isNilOrEmpty: Bool {
+        self == nil || self!.isEmpty
+    }
+
+    @inlinable var isNotNilOrEmpty: Bool {
+        !isNilOrEmpty
     }
 }
 
@@ -85,6 +104,14 @@ extension Optional where Wrapped: EmptyDictionaryProtocol {
             Wrapped.empty
         }
     }
+
+//    @inlinable var isNilOrEmpty: Bool {
+//        self == nil || self!.count == 0
+//    }
+//
+//    @inlinable var isNotNilOrEmpty: Bool {
+//        !isNilOrEmpty
+//    }
 }
 
 extension Optional where Wrapped == Bool {

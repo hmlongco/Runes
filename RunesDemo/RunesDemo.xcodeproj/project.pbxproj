@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		4CC312942EB6A0FA0084BE02 /* Runes in Frameworks */ = {isa = PBXBuildFile; productRef = 4CC312932EB6A0FA0084BE02 /* Runes */; };
+		4CC314072EC10A920084BE02 /* Runes in Frameworks */ = {isa = PBXBuildFile; productRef = 4CC314062EC10A920084BE02 /* Runes */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +28,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4CC314072EC10A920084BE02 /* Runes in Frameworks */,
 				4CC312942EB6A0FA0084BE02 /* Runes in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -71,6 +73,7 @@
 			name = RunesDemo;
 			packageProductDependencies = (
 				4CC312932EB6A0FA0084BE02 /* Runes */,
+				4CC314062EC10A920084BE02 /* Runes */,
 			);
 			productName = RunesDemo;
 			productReference = 4CC312842EB6A0BD0084BE02 /* RunesDemo.app */;
@@ -101,7 +104,7 @@
 			mainGroup = 4CC3127B2EB6A0BD0084BE02;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				4CC312922EB6A0FA0084BE02 /* XCLocalSwiftPackageReference "../../Runes" */,
+				4CC314052EC10A920084BE02 /* XCLocalSwiftPackageReference "../../Runes" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 4CC312852EB6A0BD0084BE02 /* Products */;
@@ -270,7 +273,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -299,7 +302,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -337,7 +340,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		4CC312922EB6A0FA0084BE02 /* XCLocalSwiftPackageReference "../../Runes" */ = {
+		4CC314052EC10A920084BE02 /* XCLocalSwiftPackageReference "../../Runes" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../../Runes;
 		};
@@ -345,6 +348,10 @@
 
 /* Begin XCSwiftPackageProductDependency section */
 		4CC312932EB6A0FA0084BE02 /* Runes */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Runes;
+		};
+		4CC314062EC10A920084BE02 /* Runes */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Runes;
 		};
