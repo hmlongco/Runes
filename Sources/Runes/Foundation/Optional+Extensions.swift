@@ -8,6 +8,8 @@
 import Foundation
 
 public protocol OptionalProtocol {
+    associatedtype Wrapped
+
     /// Adds hasValue variable check to optional values.
     ///
     /// The following code prints true if the passed string value exists, or false
@@ -26,6 +28,8 @@ public protocol OptionalProtocol {
 
     var isNil: Bool { get }
     var isNotNil: Bool { get }
+
+    var wrappedValue: Wrapped? { get }
 }
 
 extension Optional: OptionalProtocol {
@@ -44,6 +48,14 @@ extension Optional: OptionalProtocol {
 
     @inlinable public var isNotNil: Bool {
         self != nil
+    }
+
+    @inlinable public var wrappedValue: Wrapped? {
+        if case .some(let value) = self {
+            value
+        } else {
+            nil
+        }
     }
 }
 

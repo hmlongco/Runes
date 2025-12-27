@@ -10,63 +10,32 @@ import Observation
 import Runes
 import SwiftUI
 
-enum MyToasts: ToastViews {
-    case message(String)
-    case error(String)
-    var body: some View {
-        switch self {
-        case .message(let message):
-            Toast(message)
-        case .error(let error):
-            Toast(error: error)
-        }
-    }
+enum Destinations: Hashable {
+    case async(Int)
+    case toasts
 }
 
 struct HomeView: View {
-    @Environment(\.toasts) var toasts
-    @Environment(\.blocking) var blocking
-
-    @State private var isBlocking = false
-    @State private var toast: MyToasts?
-
-    init() {
-        Toast.defaultForegroundColor = .black
-        Toast.defaultBackgroundColor = .green
-    }
-
     var body: some View {
-        List {
-            Section {
-                Button("Trigger Programatic Toasts") {
-                    toasts.toast("A toast", icon: "info.circle.fill")
-                    toasts.toast("Another toast", icon: "info.circle.fill")
+        NavigationStack {
+            List {
+                NavigationLink(value: Destinations.async(1)) {
+                    Text("Async Demo")
                 }
-                Button("Trigger Message Toast Binding") {
-                    toast = .message("This was a bound toast message.")
-                }
-            }
-            Section {
-                Button("Trigger Programatic Error") {
-                    toasts.toast(error: "This is an error message.")
-                }
-                Button("Trigger Toast Error Binding") {
-                    toast = .error("This is an error message.")
+                NavigationLink(value: Destinations.toasts) {
+                    Text("Toasts Demo")
                 }
             }
-            Section {
-                Button("Toggle Blocking (Timeout)") {
-                    isBlocking = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        isBlocking = false
-                        toasts.toast(error: "Loading error")
-                    }
+            .navigationDestination(for: Destinations.self) { d in
+                switch d {
+                case .async(let index):
+                    AsyncDemoView(index: index)
+                case .toasts:
+                    ToastsDemoView()
                 }
             }
+            .navigationTitle("Runes")
         }
-        .toast($toast)
-        .blocking(isBlocking)
-        .tint(.primary)
     }
 }
 
