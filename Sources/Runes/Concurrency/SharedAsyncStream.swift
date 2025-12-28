@@ -97,7 +97,9 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
     }
 
     private var currentElement: Element
+    private var currentToken: Int = 0
     private var currentTask: Task<Void, Never>?
+    private var currentTaskToken: Int?
     private var loader: AsyncLoader?
     private var didBecomeActiveObserver: NSObjectProtocol?
     private let options: SharedAsyncStreamOptions
@@ -120,10 +122,10 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
         self.options = options
 
         if options.contains(.loadOnInit) {
-            triggerLoadIfNeeded()
+            triggerLoadIfNeeded(token: currentToken)
         }
 
-        #if canImport(UIKit)
+#if canImport(UIKit)
         if options.contains(.reloadOnActive) {
             didBecomeActiveObserver = NotificationCenter.default.addObserver(
                 forName: UIApplication.didBecomeActiveNotification,
@@ -133,15 +135,15 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
                 self?.reload()
             }
         }
-        #endif
+#endif
     }
 
     deinit {
-        #if canImport(UIKit)
+#if canImport(UIKit)
         if let token = didBecomeActiveObserver {
             NotificationCenter.default.removeObserver(token)
         }
-        #endif
+#endif
 
         currentTask?.cancel()
         finishAllListeners()
@@ -269,41 +271,57 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
     ///
     /// Does nothing if loading is currently in progress.
     public func reload() {
+        guard lock.withLock { currentTaskToken == nil } == true else {
+            return
+        }
         if !options.contains(.reloadsSilently) {
             broadcast(.loading)
         }
-        triggerLoadIfNeeded()
+        triggerLoadIfNeeded(token: lock.withLock { self.currentToken })
+    }
+
+    /// external check on loading status
+    public var isLoading: Bool {
+        lock.withLock { currentTaskToken != nil }
     }
 
     // MARK: - Internals (listener management)
 
     internal func addAsyncListener(yield: @escaping @Sendable (Element) -> Void, finish: @escaping @Sendable () -> Void) -> UUID {
-        let token = UUID()
+        let asyncListenerToken = UUID()
 
-        let (value, task) = lock.withLock {
-            self.listeners[token] = Listener(yield: yield, finish: finish)
+        let (element, task) = lock.withLock {
+            self.listeners[asyncListenerToken] = Listener(yield: yield, finish: finish)
             return (currentElement, currentTask)
         }
 
-        yield(value) // always yields current value
+        yield(element) // always yields current value
 
-        if case .loading = value, task == nil {
-            triggerLoadIfNeeded()
+        if case .loading = element {
+            triggerLoadIfNeeded(token: lock.withLock { self.currentToken })
         }
 
-        return token
+        return asyncListenerToken
     }
 
-    internal func removeAsyncListener(_ id: UUID) {
+    internal func removeAsyncListener(_ token: UUID) {
         lock.withLock {
-            listeners[id] = nil
+            listeners[token] = nil
         }
     }
 
-    private func broadcast(_ element: Element) {
-        let listeners = lock.withLock {
+    private func broadcast(_ element: Element, token: Int? = nil) {
+        // if token has changed then triggerLoadIfNeeded no longer has authority to publish values or errors
+        if let token, lock.withLock { self.currentToken != token } == true {
+            return
+        }
+
+        let (listeners, nextToken) = lock.withLock {
             self.currentElement = element
-            return self.listeners
+            if token == nil {
+                self.currentToken &+= 1
+            }
+            return (self.listeners, self.currentToken)
         }
 
         for listener in listeners {
@@ -311,13 +329,15 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
         }
 
         if case .loading = element {
-            triggerLoadIfNeeded()
+            triggerLoadIfNeeded(token: nextToken)
         }
     }
 
     private func finishAllListeners() {
         let listeners = lock.withLock {
-            self.listeners
+            let currentListeners = self.listeners
+            self.listeners.removeAll()
+            return currentListeners
         }
 
         for listener in listeners {
@@ -327,51 +347,50 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
 
     private func cancelCurrentTaskOnly() {
         let task = lock.withLock {
-            currentTask.take()
+            defer {
+                self.currentTask = nil
+                self.currentTaskToken = nil
+            }
+            return self.currentTask
         }
         task?.cancel()
     }
 
-    private func clearCurrentTask() {
+    /// Conditional internal loading function
+    private func triggerLoadIfNeeded(token: Int) {
         lock.withLock {
-            self.currentTask = nil
-        }
-    }
-
-    /// Internal loading function
-    private func triggerLoadIfNeeded() {
-        let currentTask = lock.withLock { self.currentTask }
-
-        guard currentTask == nil else {
-            return
-        }
-
-        let task = Task { [weak self] in
-            guard let self, let loader else {
+            guard currentTaskToken == nil else {
                 return
             }
 
-            defer {
-                self.clearCurrentTask()
-            }
-
-            do {
-                try Task.checkCancellation()
-                if let value = try await loader() {
+            currentTaskToken = token
+            currentTask = Task {
+                do {
                     try Task.checkCancellation()
-                    self.broadcast(.value(value))
-                } else {
-                    self.broadcast(.empty)
+                    if let value = try await loader?() {
+                        try Task.checkCancellation()
+                        broadcast(.value(value), token: token)
+                    } else {
+                        broadcast(.empty, token: token)
+                    }
+                } catch is CancellationError {
+                    broadcast(.cancelled, token: token)
+                } catch {
+                    broadcast(.error(error), token: token)
                 }
-            } catch is CancellationError {
-                self.broadcast(.cancelled)
-            } catch {
-                self.broadcast(.error(error))
+
+                clearCurrentTask(token: token)
             }
         }
+    }
 
+    private func clearCurrentTask(token: Int) {
         lock.withLock {
-            self.currentTask = task
+            guard currentTaskToken == token else {
+                return
+            }
+            self.currentTask = nil
+            self.currentTaskToken = nil
         }
     }
 }
@@ -454,6 +473,7 @@ nonisolated public struct SharedAsyncStreamOptions: OptionSet {
 
     /// If reload occurs the .loading message will not be sent and subject will remain in the current state
     nonisolated(unsafe) public static let reloadsSilently = SharedAsyncStreamOptions(rawValue: 1 << 2)
+
     /// If set cancellation errors will terminate value streams
     nonisolated(unsafe) public static let throwsCancellationErrors = SharedAsyncStreamOptions(rawValue: 1 << 3)
 

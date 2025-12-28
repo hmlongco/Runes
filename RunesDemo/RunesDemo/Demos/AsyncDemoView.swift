@@ -155,7 +155,7 @@ class TestService {
     private let networking = NetworkingService()
     private var cancellables = Set<AnyCancellable>()
 
-    lazy var integers: SharedAsyncStream<Int> = .init(options: [.reloadOnActive, .throwsCancellationErrors]) { [weak self] in
+    lazy var integers: SharedAsyncStream<Int> = .init(options: [.reloadOnActive]) { [weak self] in
         try await self?.networking.load()
     }
 
