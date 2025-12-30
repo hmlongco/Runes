@@ -108,7 +108,7 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
     private var loader: AsyncLoader?
     private var didBecomeActiveObserver: NSObjectProtocol?
     private let options: SharedAsyncStreamOptions
-    private var observers: [String : AsyncObserver] = [:]
+    private var observers: [UUID : AsyncObserver] = [:]
     private let lock = OSAllocatedUnfairLock()
 
     // MARK: - Init / Deinit
@@ -293,16 +293,11 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
     // MARK: - Internals (observer management)
 
     internal func addAsyncObserver(
-        _ observer: AnyObject? = nil,
+        key: UUID = .init(),
+        observer: AnyObject? = nil,
         yield: @escaping @Sendable (Element) -> Void,
-        finish: @escaping @Sendable () -> Void
-    ) -> String {
-        let key: String = if let observer {
-            "\(ObjectIdentifier(observer))"
-        } else {
-            UUID().uuidString
-        }
-
+        finish: @escaping @Sendable () -> Void,
+    ) -> UUID {
         let observingObject: ObservingObject? = observer == nil ? nil : .init(object: observer)
 
         let (element, token) = lock.withLock {
@@ -319,7 +314,7 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
         return key
     }
 
-   internal func removeAsyncObserver(_ key: String) {
+   internal func removeAsyncObserver(_ key: UUID) {
         lock.withLock {
             observers.removeValue(forKey: key)
         }

@@ -47,7 +47,7 @@ public extension SharedAsyncStream {
             private let parent: SharedAsyncStream<Value>
             private var downstream: S?
 
-            private var token: String?
+            private var token: UUID?
             private var demand: Subscribers.Demand = .none
             private let demandLock = NSLock()
 

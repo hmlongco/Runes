@@ -193,14 +193,32 @@ class TestService {
 
     lazy var doubles: SharedAsyncStream<Double> = .init(initialValue: 2.0)
 
+    var integer: Int? = nil {
+        didSet {
+            print("Updated integer to \(String(describing: integer))")
+        }
+    }
+
+    var element: SharedAsyncStream<Int>.Element = .loading {
+        didSet {
+            print("Updated element to \(String(describing: element))")
+        }
+    }
+
     init() {
         monitorViaTask()
         monitorViaPublisher()
+        monitorViaAssignment()
         monitorViaObserver()
     }
 
     deinit {
         print("TestService deinit")
+    }
+
+    func monitorViaAssignment() {
+        integers.assign(\.element, on: self)
+        integers.assign(\.integer, on: self)
     }
 
     func monitorViaObserver() {
