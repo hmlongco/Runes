@@ -7,9 +7,6 @@
 
 import Foundation
 import os
-#if canImport(UIKit)
-import UIKit
-#endif
 
 /// Shared datasource for async value streams. Stream can be set to automatically load its initial state on first subscription.
 /// ```swift
@@ -109,9 +106,9 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
     private var currentTask: Task<Void, Never>?
     private var currentTaskToken: Int?
     private var loader: AsyncLoader?
-    private var didBecomeActiveObserver: NSObjectProtocol?
     private let options: SharedAsyncStreamOptions
     private var observers: [UUID : AsyncObserver] = [:]
+    private var onBecomeActiveNotification: OnBecomeActiveNotification?
     private let lock = OSAllocatedUnfairLock()
 
     // MARK: - Init / Deinit
@@ -133,26 +130,16 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
             triggerLoadIfNeeded(token: currentToken)
         }
 
-#if canImport(UIKit)
         if options.contains(.reloadOnActive) {
-            didBecomeActiveObserver = NotificationCenter.default.addObserver(
-                forName: UIApplication.didBecomeActiveNotification,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
+            #if canImport(UIKit)
+            onBecomeActiveNotification = .init { [weak self] in
                 self?.reload()
             }
+            #endif
         }
-#endif
     }
 
     deinit {
-#if canImport(UIKit)
-        if let token = didBecomeActiveObserver {
-            NotificationCenter.default.removeObserver(token)
-        }
-#endif
-
         currentTask?.cancel()
         finishAllObservers()
     }

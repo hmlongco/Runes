@@ -25,13 +25,15 @@ struct AsyncDemoView: View {
                 ThrowingTaskValueView(viewModel: viewModel)
                 PublisherValueView(viewModel: viewModel)
             }
-            if viewModel.another {
-                TaskValueView(viewModel: viewModel)
+            Section {
+                ForEach(0..<viewModel.another, id: \.self) { _ in
+                    TaskValueView(viewModel: viewModel)
+                }
             }
             // actions
             Section {
                 Button("Show Another Value") {
-                    viewModel.another = true
+                    viewModel.another += 1
                 }
                 Button("Side Effect") {
                     viewModel.sideEffect()
@@ -121,7 +123,7 @@ class AsyncDemoViewModel {
     var integer: Int? = nil
     var copy: Int? = nil
     var double: Double? = nil
-    var another: Bool = false
+    var another: Int = 0
 
     init() {
 //        taskListen()
