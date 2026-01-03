@@ -108,7 +108,7 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
     private var loader: AsyncLoader?
     private let options: SharedAsyncStreamOptions
     private var observers: [UUID : AsyncObserver] = [:]
-    private var onBecomeActiveNotification: OnBecomeActiveNotification?
+    private var onActive: OnNotification?
     private let lock = OSAllocatedUnfairLock()
 
     // MARK: - Init / Deinit
@@ -132,7 +132,7 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
 
         if options.contains(.reloadOnActive) {
             #if canImport(UIKit)
-            onBecomeActiveNotification = .init { [weak self] in
+            onActive = .didBecomeActive { [weak self] in
                 self?.reload()
             }
             #endif
@@ -295,10 +295,16 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
             return (currentElement, currentToken)
         }
 
-        yield(element) // always yields current value
+        Task {
+            guard token == self.getCurrentToken() else {
+                return
+            }
+            
+            yield(element)
 
-        if case .loading = element {
-            self.triggerLoadIfNeeded(token: token)
+            if case .loading = element {
+                self.triggerLoadIfNeeded(token: token)
+            }
         }
 
         return key
@@ -311,17 +317,16 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
     }
 
     private func broadcast(_ element: Element, token: Int? = nil) {
-        // if token has changed then triggerLoadIfNeeded no longer has authority to publish values or errors
-        if let token, lock.withLock { self.currentToken != token } == true {
-            return
-        }
-
-        let (observers, nextToken) = lock.withLock {
-            self.currentElement = element
-            if token == nil {
-                self.currentToken &+= 1
+        guard let (observers, nextToken): ([UUID : AsyncObserver], Int) = lock.withLock({
+            // if token has changed then triggerLoadIfNeeded no longer has authority to publish values or errors
+            if let token, self.currentToken != token {
+                return nil
             }
+            self.currentElement = element
+            self.currentToken &+= 1
             return (self.observers, self.currentToken)
+        }) else {
+            return
         }
 
         for observer in observers {

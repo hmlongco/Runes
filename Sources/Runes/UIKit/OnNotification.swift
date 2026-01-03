@@ -11,18 +11,18 @@ import UIKit
 
 public class OnNotification {
 
-    private let onNotify: (Notification) -> Void
     private var observer: NSObjectProtocol? = nil
+    private let perform: (Notification) -> Void
 
-    public init(_ name: Notification.Name, onNotify: @escaping (Notification) -> Void) {
-        self.onNotify = onNotify
+    public init(_ name: Notification.Name, perform: @escaping (Notification) -> Void) {
+        self.perform = perform
 
         observer = NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification,
             object: nil,
             queue: .main
         ) { [weak self] notification in
-            self?.onNotify(notification)
+            self?.perform(notification)
         }
     }
 
@@ -34,15 +34,13 @@ public class OnNotification {
 
 }
 
-public class OnBecomeActiveNotification: OnNotification {
-    public init(onActive: @escaping () -> Void) {
-        super.init(UIApplication.didBecomeActiveNotification, onNotify: { _ in onActive() })
+extension OnNotification {
+    public static func didBecomeActive(perform: @escaping () -> Void) -> OnNotification {
+        .init(UIApplication.didBecomeActiveNotification, perform: { _ in perform() })
     }
-}
 
-public class OnEnterBackgroundNotification: OnNotification {
-    public init(onBackground: @escaping () -> Void) {
-        super.init(UIApplication.didEnterBackgroundNotification, onNotify: { _ in onBackground() })
+    public static func didEnterBackground(perform: @escaping () -> Void) -> OnNotification {
+        .init(UIApplication.didEnterBackgroundNotification, perform: { _ in perform() })
     }
 }
 #endif

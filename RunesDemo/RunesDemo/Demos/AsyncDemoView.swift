@@ -24,6 +24,7 @@ struct AsyncDemoView: View {
                 TaskValueView(viewModel: viewModel)
                 ThrowingTaskValueView(viewModel: viewModel)
                 PublisherValueView(viewModel: viewModel)
+                Text("Assigned Value \(viewModel.assigned ?? 0)")
             }
             Section {
                 ForEach(0..<viewModel.another, id: \.self) { _ in
@@ -121,36 +122,20 @@ class AsyncDemoViewModel {
     var cancellables = Set<AnyCancellable>()
 
     var integer: Int? = nil
-    var copy: Int? = nil
+    var assigned: Int? = nil
     var double: Double? = nil
     var another: Int = 0
 
     init() {
-//        taskListen()
-//        observerListen()
-//        assignListen()
+        print("AsyncDemoViewModel init \(ObjectIdentifier(self))")
+        taskListen()
+        observerListen()
+        assignListen()
     }
 
     func asyncListen() async {
         for await next in service.integers.stream {
             integer = next.value
-        }
-    }
-
-    func asyncTaskGroupListen() async {
-        await withTaskGroup { [service] group in
-            group.addTask {
-                for await next in service.integers.stream {
-                    DispatchQueue.main.async { self.integer = next.value }
-                }
-                print("Exit asyncTaskGroupListen")
-            }
-            group.addTask {
-                for await next in service.doubles.stream {
-                    DispatchQueue.main.async { self.double = next.value }
-                }
-                print("Exit asyncTaskGroupListen")
-            }
         }
     }
 
@@ -171,7 +156,7 @@ class AsyncDemoViewModel {
     }
 
     func assignListen() {
-        service.integers.assign(\.copy, on: self)
+        service.integers.assign(\.assigned, on: self)
     }
 
     func sideEffect() {
@@ -183,10 +168,11 @@ class AsyncDemoViewModel {
     }
 
     deinit {
-        print("AsyncDemoViewModel deinit")
+        print("AsyncDemoViewModel deinit \(ObjectIdentifier(self))")
     }
 }
 
+@MainActor
 class TestService {
     private let networking = NetworkingService()
     private var cancellables = Set<AnyCancellable>()
