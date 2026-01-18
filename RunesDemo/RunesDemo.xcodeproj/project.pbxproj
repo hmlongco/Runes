@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		4C3D36AE2F09E216004E183E /* AsyncAlgorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 4C3D36AD2F09E216004E183E /* AsyncAlgorithms */; };
 		4CC312942EB6A0FA0084BE02 /* Runes in Frameworks */ = {isa = PBXBuildFile; productRef = 4CC312932EB6A0FA0084BE02 /* Runes */; };
 		4CC314072EC10A920084BE02 /* Runes in Frameworks */ = {isa = PBXBuildFile; productRef = 4CC314062EC10A920084BE02 /* Runes */; };
 /* End PBXBuildFile section */
@@ -30,6 +31,7 @@
 			files = (
 				4CC314072EC10A920084BE02 /* Runes in Frameworks */,
 				4CC312942EB6A0FA0084BE02 /* Runes in Frameworks */,
+				4C3D36AE2F09E216004E183E /* AsyncAlgorithms in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -74,6 +76,7 @@
 			packageProductDependencies = (
 				4CC312932EB6A0FA0084BE02 /* Runes */,
 				4CC314062EC10A920084BE02 /* Runes */,
+				4C3D36AD2F09E216004E183E /* AsyncAlgorithms */,
 			);
 			productName = RunesDemo;
 			productReference = 4CC312842EB6A0BD0084BE02 /* RunesDemo.app */;
@@ -105,6 +108,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				4CC314052EC10A920084BE02 /* XCLocalSwiftPackageReference "../../Runes" */,
+				4C3D36AC2F09E216004E183E /* XCRemoteSwiftPackageReference "swift-async-algorithms" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 4CC312852EB6A0BD0084BE02 /* Products */;
@@ -346,7 +350,23 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		4C3D36AC2F09E216004E183E /* XCRemoteSwiftPackageReference "swift-async-algorithms" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-async-algorithms.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
+		4C3D36AD2F09E216004E183E /* AsyncAlgorithms */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4C3D36AC2F09E216004E183E /* XCRemoteSwiftPackageReference "swift-async-algorithms" */;
+			productName = AsyncAlgorithms;
+		};
 		4CC312932EB6A0FA0084BE02 /* Runes */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Runes;

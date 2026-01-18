@@ -44,7 +44,7 @@ import os
 /// To consume the shared data as an async stream do:
 /// ```swift
 /// .task {
-///     for await next in viewModel.service.stream {
+///     for await next in viewModel.service.integers.stream {
 ///         self.value = next.value
 ///     }
 /// }
@@ -70,7 +70,7 @@ import os
 /// extension TestService {
 ///     func update(value: Int, for id: Int) async throws {
 ///         let newValue = try await database.update(value, for id: id)
-///         service.send(newValue)
+///         service.integers.send(newValue)
 ///     }
 /// }
 /// ```
@@ -103,7 +103,7 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
 
     private var currentElement: Element
     private var currentToken: Int = 0
-    private var currentTask: Task<Void, Never>?
+    private var currentTask: Task<Element, Never>?
     private var currentTaskToken: Int?
     private var loader: AsyncLoader?
     private let options: SharedAsyncStreamOptions
@@ -127,7 +127,7 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
         self.options = options
 
         if options.contains(.loadOnInit) {
-            triggerLoadIfNeeded(token: currentToken)
+            triggerLoadingTask(token: currentToken)
         }
 
         if options.contains(.reloadOnActive) {
@@ -187,7 +187,7 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
     /// Async stream for AsyncValues.
     /// ```swift
     /// .task {
-    ///     for await next in viewModel.service.stream {
+    ///     for await next in viewModel.service.integers.stream {
     ///         self.value = next.value
     ///     }
     /// }
@@ -217,7 +217,7 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
     /// ```swift
     /// .task {
     ///     do {
-    ///         for try await value in viewModel.service.values {
+    ///         for try await value in viewModel.service.integers.values {
     ///             self.value = value
     ///         }
     ///     } catch {
@@ -229,14 +229,12 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
     /// exit the stream.
     ///
     /// Cancellation errors may do so if the .throwsCancellationErrors option is set.
-    public var values: AsyncThrowingStream<Value?, Error> {
+    public var values: AsyncThrowingStream<Value, Error> {
         let throwsCancellationErrors = options.contains(.throwsCancellationErrors)
         return AsyncThrowingStream(bufferingPolicy: .bufferingNewest(1)) { continuation in
             let token = addAsyncObserver(
                 yield: { element in
                     switch element {
-                    case .empty:
-                        continuation.yield(nil)
                     case let .value(value):
                         continuation.yield(value)
                     case let .error(error):
@@ -260,6 +258,48 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
         }
     }
 
+    // MARK: - Async value access
+
+    /// Returns current value element if present, otherwise triggers load function and awaits result.
+    /// ```swift
+    /// .task {
+    ///     let result = await viewModel.service.integers.asyncElement()
+    ///     switch result {
+    ///     case let .value(value):
+    ///         self.value = value
+    ///     default:
+    ///         ...
+    ///     }
+    /// }
+    /// ```
+    /// Elements are returned for all cases: .loading, .value, .error, and .cancelled.
+    ///
+    /// Will also broadcast results to any subscribers or streams.
+    public func asyncElement() async -> Element {
+        if case .value(let value) = current {
+            return .value(value)
+        }
+        let task = lock.withLock {
+            triggerLoadingTask(token: currentToken)
+        }
+        return try await task.value
+    }
+
+    /// Returns current value if present, otherwise triggers load function and awaits result.
+    /// ```swift
+    /// .task {
+    ///     do {
+    ///         self.value = try await viewModel.service.integers.asyncValue()
+    ///     } catch {
+    ///         ???
+    ///     }
+    /// }
+    /// ```
+    /// Will also broadcast results to any subscribers or streams.
+    public func asyncValue() async throws -> Value {
+        try await asyncElement().throwingValue()
+    }
+
     // MARK: - Helpers
 
     /// Force a reload via the async loader typically after explicit invalidation.
@@ -272,7 +312,7 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
         if !options.contains(.reloadsSilently) {
             broadcast(.loading)
         }
-        triggerLoadIfNeeded(token: token)
+        triggerLoadingTask(token: token)
     }
 
     /// external check on loading status
@@ -303,7 +343,7 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
             yield(element)
 
             if case .loading = element {
-                self.triggerLoadIfNeeded(token: token)
+                self.triggerLoadingTask(token: token)
             }
         }
 
@@ -338,7 +378,7 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
         }
 
         if case .loading = element {
-            triggerLoadIfNeeded(token: nextToken)
+            triggerLoadingTask(token: nextToken)
         }
     }
 
@@ -365,30 +405,44 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
     }
 
     /// Conditional internal loading function
-    private func triggerLoadIfNeeded(token: Int) {
+    @discardableResult
+    private func triggerLoadingTask(token: Int) -> Task<Element, Never> {
         lock.withLock {
-            guard currentTaskToken == nil else {
-                return
+            if currentTaskToken != nil, let currentTask {
+                return currentTask
             }
 
             currentTaskToken = token
-            currentTask = Task {
-                do {
-                    try Task.checkCancellation()
-                    if let value = try await loader?() {
-                        try Task.checkCancellation()
-                        broadcast(.value(value), token: token)
-                    } else {
-                        broadcast(.empty, token: token)
-                    }
-                } catch is CancellationError {
-                    broadcast(.cancelled, token: token)
-                } catch {
-                    broadcast(.error(error), token: token)
-                }
-
+            let task = Task {
+                let element = await asyncLoad()
+                broadcast(element, token: token)
                 clearCurrentTask(token: token)
+                return element
             }
+            currentTask = task
+            return task
+        }
+    }
+
+    /// Call load function, breaking results down into Element
+    private func asyncLoad() async -> Element {
+        do {
+            try Task.checkCancellation()
+            if let loader {
+                let value = try await loader()
+                try Task.checkCancellation()
+                if let value = value as? Value {
+                    return .value(value)
+                } else {
+                    return .error(SharedAsyncStreamError.invalidLoadingResult)
+                }
+            } else {
+                return .error(SharedAsyncStreamError.invalidLoadingResult)
+            }
+        } catch is CancellationError {
+            return .cancelled
+        } catch {
+            return .error(error)
         }
     }
 
@@ -410,7 +464,6 @@ public extension SharedAsyncStream {
     /// Status and value type propagated by SharedAsyncStream.
     nonisolated enum Element: @unchecked Sendable {
         case loading
-        case empty
         case value(Value)
         case error(Error)
         case cancelled
@@ -421,26 +474,36 @@ public extension SharedAsyncStream {
             return nil
         }
 
+        /// Unwraps optional type. Use instead of `value` if `Value` is optional. (e.g. `SharedAsyncStream<Int?>` }
+        ///
+        /// Returns nil if the element was not a value, and returns nil if the we had a value, but the optional value was nil.
+        public func optionalValue() -> Value.Wrapped? where Value: OptionalProtocol {
+            if case let .value(value) = self {
+                return value.wrappedValue
+            }
+            return nil
+        }
+
+        /// Return true if element has a value
         public var isValue: Bool {
             if case .value = self { return true }
             return false
         }
 
-        /// Returns error from AsyncValue state if it exists
+        /// Returns error from AsyncValue state if it exists. Includes cancellation errors.
         public var error: Error? {
-            if case let .error(error) = self { return error }
+            if case let .error(error) = self {
+                return error
+            }
+            if case let .cancelled = self {
+                return SharedAsyncStreamError.cancelled
+            }
             return nil
         }
 
+        /// Returns true if error or cancellation error
         public var isError: Bool {
-            if case .error = self { return true }
-            return false
-        }
-
-        /// Returns true if current AsyncValue state is empty
-        public var isEmpty: Bool {
-            if case .empty = self { return true }
-            return false
+            return error != nil
         }
 
         /// Returns true if current AsyncValue state is loading
@@ -454,6 +517,29 @@ public extension SharedAsyncStream {
             if case .cancelled = self { return true }
             return false
         }
+
+        /// Returns value or throws error
+        public func throwingValue() throws -> Value {
+            switch self {
+            case let .value(value):
+                return value
+            case .loading:
+                throw SharedAsyncStreamError.invalidReturnResult
+            case let .error(error):
+                throw error
+            case .cancelled:
+                throw SharedAsyncStreamError.cancelled
+            }
+        }
+    }
+
+    nonisolated enum SharedAsyncStreamError: Error {
+        /// Thrown if task was cancelled
+        case cancelled
+        /// Invalid state, usually if loading function returns nil for non-nil values
+        case invalidLoadingResult
+        /// Invalid state, usually if throwing function attempts to return .loading as a result
+        case invalidReturnResult
     }
 }
 
@@ -463,7 +549,6 @@ extension SharedAsyncStream.Element: Equatable where Value: Equatable {
         case (.loading, .loading): return true
         case let (.value(a), .value(b)): return a == b
         case (.error, .error): return true
-        case (.empty, .empty): return true
         case (.cancelled, .cancelled): return true
         default: return false
         }

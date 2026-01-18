@@ -5,6 +5,7 @@
 //  Created by Michael Long on 12/18/25.
 //
 
+import AsyncAlgorithms
 import Combine
 import Observation
 import Runes
@@ -24,7 +25,7 @@ struct AsyncDemoView: View {
                 TaskValueView(viewModel: viewModel)
                 ThrowingTaskValueView(viewModel: viewModel)
                 PublisherValueView(viewModel: viewModel)
-                Text("Assigned Value \(viewModel.assigned ?? 0)")
+                Text("Assigned Value \(viewModel.assigned)")
             }
             Section {
                 ForEach(0..<viewModel.another, id: \.self) { _ in
@@ -57,7 +58,8 @@ struct AsyncFunctionTaskValueView: View {
         Text("Async Function Task Value: \(String(describing: viewModel.integer))")
             .task {
                 print("Async Function Listening")
-                await viewModel.asyncListen()
+//                await viewModel.asyncListen()
+                await viewModel.combineLatestListen()
                 print("Async Function Listening completed")
             }
     }
@@ -151,12 +153,19 @@ class AsyncDemoViewModel {
 
     func observerListen() {
         service.doubles.addObserver(self) { [weak self] next in
-            self?.double = next.value
+            self?.double = next.optionalValue()
         }
     }
 
     func assignListen() {
         service.integers.assign(\.assigned, on: self, defaultValue: 0)
+    }
+
+    func combineLatestListen() async {
+        for await (i, d) in combineLatest(service.integers.stream, service.doubles.stream) {
+            integer = i.value
+            double = d.optionalValue()
+        }
     }
 
     func sideEffect() {
@@ -177,11 +186,13 @@ class TestService {
     private let networking = NetworkingService()
     private var cancellables = Set<AnyCancellable>()
 
+    // Test stream of integers
     lazy var integers: SharedAsyncStream<Int> = .init(options: [.reloadOnActive]) { [weak self] in
         try await self?.networking.load()
     }
 
-    lazy var doubles: SharedAsyncStream<Double> = .init(initialValue: 2.0)
+    // Test optional type
+    lazy var doubles: SharedAsyncStream<Double?> = .init(initialValue: 2.0)
 
     var integer: Int? = nil {
         didSet {
