@@ -7,6 +7,9 @@
 
 import Foundation
 import os
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// Shared datasource for async value streams. Stream can be set to automatically load its initial state on first subscription.
 /// ```swift
@@ -275,8 +278,8 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
     /// Elements are returned for all cases: .loading, .value, .error, and .cancelled.
     ///
     /// Will also broadcast results to any subscribers or streams.
-    public func asyncElement() async -> Element {
-        if case .value(let value) = current {
+    public func asyncElement(forceReload: Bool = false) async -> Element {
+        if forceReload == false, case .value(let value) = current {
             return .value(value)
         }
         let task = lock.withLock {
@@ -296,8 +299,8 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
     /// }
     /// ```
     /// Will also broadcast results to any subscribers or streams.
-    public func asyncValue() async throws -> Value {
-        try await asyncElement().throwingValue()
+    public func asyncValue(forceReload: Bool = false) async throws -> Value {
+        try await asyncElement(forceReload: forceReload).throwingValue()
     }
 
     // MARK: - Helpers
@@ -458,124 +461,4 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
             }
         }
     }
-}
-
-public extension SharedAsyncStream {
-    /// Status and value type propagated by SharedAsyncStream.
-    nonisolated enum Element: @unchecked Sendable {
-        case loading
-        case value(Value)
-        case error(Error)
-        case cancelled
-
-        /// Returns value from AsyncValue state if it exists
-        public var value: Value? {
-            if case let .value(value) = self { return value }
-            return nil
-        }
-
-        /// Unwraps optional type. Use instead of `value` if `Value` is optional. (e.g. `SharedAsyncStream<Int?>` }
-        ///
-        /// Returns nil if the element was not a value, and returns nil if the we had a value, but the optional value was nil.
-        public func optionalValue() -> Value.Wrapped? where Value: OptionalProtocol {
-            if case let .value(value) = self {
-                return value.wrappedValue
-            }
-            return nil
-        }
-
-        /// Return true if element has a value
-        public var isValue: Bool {
-            if case .value = self { return true }
-            return false
-        }
-
-        /// Returns error from AsyncValue state if it exists. Includes cancellation errors.
-        public var error: Error? {
-            if case let .error(error) = self {
-                return error
-            }
-            if case let .cancelled = self {
-                return SharedAsyncStreamError.cancelled
-            }
-            return nil
-        }
-
-        /// Returns true if error or cancellation error
-        public var isError: Bool {
-            return error != nil
-        }
-
-        /// Returns true if current AsyncValue state is loading
-        public var isLoading: Bool {
-            if case .loading = self { return true }
-            return false
-        }
-
-        /// Returns true if current AsyncValue state is cancelled
-        public var isCancelled: Bool {
-            if case .cancelled = self { return true }
-            return false
-        }
-
-        /// Returns value or throws error
-        public func throwingValue() throws -> Value {
-            switch self {
-            case let .value(value):
-                return value
-            case .loading:
-                throw SharedAsyncStreamError.invalidReturnResult
-            case let .error(error):
-                throw error
-            case .cancelled:
-                throw SharedAsyncStreamError.cancelled
-            }
-        }
-    }
-
-    nonisolated enum SharedAsyncStreamError: Error {
-        /// Thrown if task was cancelled
-        case cancelled
-        /// Invalid state, usually if loading function returns nil for non-nil values
-        case invalidLoadingResult
-        /// Invalid state, usually if throwing function attempts to return .loading as a result
-        case invalidReturnResult
-    }
-}
-
-extension SharedAsyncStream.Element: Equatable where Value: Equatable {
-    public static func == (lhs: SharedAsyncStream.Element, rhs: SharedAsyncStream.Element) -> Bool {
-        switch (lhs, rhs) {
-        case (.loading, .loading): return true
-        case let (.value(a), .value(b)): return a == b
-        case (.error, .error): return true
-        case (.cancelled, .cancelled): return true
-        default: return false
-        }
-    }
-}
-
-nonisolated public struct SharedAsyncStreamOptions: OptionSet {
-    public let rawValue: Int
-    public init(rawValue: Int) { self.rawValue = rawValue }
-
-    /// Load on first initialization and NOT on first subscription
-    nonisolated(unsafe) public static let loadOnInit = SharedAsyncStreamOptions(rawValue: 1 << 0)
-
-    #if canImport(UIKit)
-    /// Automatically reload values when resuming active from the background
-    nonisolated(unsafe) public static let reloadOnActive = SharedAsyncStreamOptions(rawValue: 1 << 1)
-    #endif
-
-    /// If reload occurs the .loading message will not be sent and subject will remain in the current state
-    nonisolated(unsafe) public static let reloadsSilently = SharedAsyncStreamOptions(rawValue: 1 << 2)
-
-    /// If set cancellation errors will terminate value streams
-    nonisolated(unsafe) public static let throwsCancellationErrors = SharedAsyncStreamOptions(rawValue: 1 << 3)
-
-    /// Sets global default preferences for AsyncValuesSubjects that don't specify their own.
-    ///
-    /// Default behavior loads on subscription, doesn't reload on active, sends loading states on reload, and task cancellation doesn't kill
-    /// await value observers.
-    nonisolated(unsafe) public static var defaults: SharedAsyncStreamOptions = []
 }
