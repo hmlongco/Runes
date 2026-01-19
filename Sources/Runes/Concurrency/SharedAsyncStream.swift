@@ -160,6 +160,11 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
         current.value
     }
 
+    /// Unwrap optional value and return, if any
+    public func optionalValue() -> Value.Wrapped? where Value: OptionalProtocol {
+        current.optionalValue()
+    }
+
     /// Get current error state, if any
     public var error: Error? {
         current.error

@@ -124,7 +124,7 @@ class AsyncDemoViewModel {
     var cancellables = Set<AnyCancellable>()
 
     var integer: Int? = nil
-    var assigned: Int? = -1
+    var assigned: Int = -1
     var double: Double? = nil
     var another: Int = 0
 
