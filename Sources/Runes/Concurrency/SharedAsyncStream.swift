@@ -15,7 +15,7 @@ import UIKit
 /// ```swift
 /// class TestService {
 ///    lazy var integers: SharedAsyncStream<Int> = .init { [weak self] in
-///         try await self?.initialLoad()
+///         try await safe(self).initialLoad()
 ///    }
 ///
 ///    private func initialLoad() async throws -> Int {
@@ -81,13 +81,13 @@ import UIKit
 ///
 /// SharedAsyncStream's behavior can be tuned as needed.
 /// ```Swift
-/// lazy var integers: SharedAsyncStream<Int> = .init(options: [.reloadOnActive, .throwsCancellationErrors]) { [weak self] in
-///     try await self?.networking.load()
+/// lazy var integers: SharedAsyncStream<Int> = .init(options: [.reloadOnActive, .throwsCancellationErrors]) { [networking] in
+///     try await networking.load()
 /// }
 /// ```
 /// See `SharedAsyncStreamOptions` for more.
 nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Sendable {
-    public typealias AsyncLoader = () async throws -> Value?
+    public typealias AsyncLoader = () async throws -> Value
 
     // MARK: - State (protected by lock)
 
@@ -434,16 +434,14 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
             if let loader {
                 let value = try await loader()
                 try Task.checkCancellation()
-                if let value = value as? Value {
-                    return .value(value)
-                } else {
-                    return .error(SharedAsyncStreamError.invalidLoadingResult)
-                }
+                return .value(value)
             } else {
-                return .error(SharedAsyncStreamError.invalidLoadingResult)
+                return .error(SharedAsyncStreamError.invalidInstance)
             }
         } catch is CancellationError {
             return .cancelled
+        } catch is InstanceError {
+            return .error(SharedAsyncStreamError.invalidInstance)
         } catch {
             return .error(error)
         }

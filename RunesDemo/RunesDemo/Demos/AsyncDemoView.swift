@@ -124,7 +124,7 @@ class AsyncDemoViewModel {
     var cancellables = Set<AnyCancellable>()
 
     var integer: Int? = nil
-    var assigned: Int = -1
+    var assigned: Int? = -1
     var double: Double? = nil
     var another: Int = 0
 
@@ -186,9 +186,14 @@ class TestService {
     private let networking = NetworkingService()
     private var cancellables = Set<AnyCancellable>()
 
-    // Test stream of integers
-    lazy var integers: SharedAsyncStream<Int> = .init(options: [.reloadOnActive]) { [weak self] in
-        try await self?.networking.load()
+    // Test stream of integers, captures networking
+    lazy var integers: SharedAsyncStream<Int> = .init(options: [.reloadOnActive]) { [networking] in
+        try await networking.load()
+    }
+
+    // Test stream of integers, captures weak self
+    lazy var integers2: SharedAsyncStream<Int> = .init(options: [.reloadOnActive]) { [weak self] in
+        try await safe(self).load()
     }
 
     // Test optional type
@@ -215,6 +220,11 @@ class TestService {
 
     deinit {
         print("TestService deinit")
+    }
+
+    func load() async throws -> Int {
+        try await Task.sleep(nanoseconds: 4_000_000_000)
+        return 2
     }
 
     func monitorViaAssignment() {

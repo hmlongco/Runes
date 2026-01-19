@@ -75,7 +75,7 @@ extension SharedAsyncStream {
     /// The observer must be a reference type, as that's used to automatically remove the observer when the observing object goes out of scope.
     ///
     /// Assignment will always occur on the MainActor.
-    public func assign<O: AnyObject>(_ keyPath: ReferenceWritableKeyPath<O, Value>, on observer: O, defaultValue: Value) {
+    public func assign<O: AnyObject>(_ keyPath: ReferenceWritableKeyPath<O, Value?>, on observer: O, defaultValue: Value) {
         let key = UUID()
         let sendableWritableKeyPath = SendableWritableKeyPath(observer: observer, keyPath: keyPath)
         addAsyncObserver(

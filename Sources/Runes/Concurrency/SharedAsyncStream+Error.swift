@@ -12,7 +12,7 @@ public extension SharedAsyncStream {
         /// Thrown if task was cancelled
         case cancelled
         /// Invalid state, usually if loading function returns nil for non-nil values
-        case invalidLoadingResult
+        case invalidInstance
         /// Invalid state, usually if throwing function attempts to return .loading as a result
         case invalidReturnResult
     }
