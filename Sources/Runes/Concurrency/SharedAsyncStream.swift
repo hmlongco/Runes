@@ -342,7 +342,7 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
             self.observers[key] = AsyncObserver(observingObject: object, yield: yield, finish: finish)
             return (currentElement, currentToken)
         }
-
+        
         Task {
             guard token == self.getCurrentToken() else {
                 return

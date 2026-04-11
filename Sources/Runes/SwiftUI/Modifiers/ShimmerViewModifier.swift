@@ -106,7 +106,7 @@ public extension View {
         active: Bool = true,
         animation: Animation = Shimmer.defaultAnimation,
         gradient: Gradient = Shimmer.defaultGradient,
-        bandSize: CGFloat = 0.3
+        bandSize: CGFloat = 0.5
     ) -> some View {
         if active {
             modifier(Shimmer(animation: animation, gradient: gradient, bandSize: bandSize))

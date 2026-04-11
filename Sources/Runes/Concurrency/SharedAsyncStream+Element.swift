@@ -41,7 +41,7 @@ public extension SharedAsyncStream {
             if case let .error(error) = self {
                 return error
             }
-            if case let .cancelled = self {
+            if case .cancelled = self {
                 return SharedAsyncStreamError.cancelled
             }
             return nil
