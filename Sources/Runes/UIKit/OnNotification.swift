@@ -9,7 +9,7 @@
 import Foundation
 import UIKit
 
-public class OnNotification {
+public class OnNotification: @unchecked Sendable {
 
     private var observer: NSObjectProtocol? = nil
     private let perform: (Notification) -> Void

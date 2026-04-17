@@ -8,7 +8,21 @@
 import SwiftUI
 
 extension Color {
-    func luminance() -> Double {
+    public init(hex: String, opacity: Double = 1.0) {
+        let hex = hex
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "#", with: "")
+
+        let value = UInt64(hex, radix: 16) ?? 0
+
+        let r = Double((value >> 16) & 0xFF) / 255
+        let g = Double((value >> 8)  & 0xFF) / 255
+        let b = Double(value         & 0xFF) / 255
+
+        self.init(red: r, green: g, blue: b, opacity: opacity)
+    }
+
+    public func luminance() -> Double {
         let uiColor = UIColor(self)
         var red: CGFloat = 0
         var green: CGFloat = 0
@@ -19,7 +33,7 @@ extension Color {
 }
 
 extension Color {
-    func isLight() -> Bool {
+    public func isLight() -> Bool {
         return luminance() > 0.5
     }
 }
@@ -32,7 +46,7 @@ extension Color {
     ///        .background(team.color)
     ///        .foregroundStyle(team.color.adaptedTextColor())
     /// ```
-    func adaptiveTextColor() -> Color {
+    public func adaptiveTextColor() -> Color {
         return isLight() ? Color.black : Color.white
     }
 }
