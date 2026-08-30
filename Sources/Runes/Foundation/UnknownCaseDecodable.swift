@@ -15,7 +15,7 @@ import Foundation
 ///        case unknown
 ///    }
 /// ```
-public  protocol UnknownCaseDecodable: Decodable where Self: RawRepresentable {
+public protocol UnknownCaseDecodable: Decodable where Self: RawRepresentable {
     associatedtype DecodeType: Decodable where DecodeType == RawValue
     static var unknown: Self { get }
     var rawValue: DecodeType { get }
@@ -28,3 +28,12 @@ extension UnknownCaseDecodable {
         self = .init(rawValue: rawValue) ?? Self.unknown
     }
 }
+
+#if DEBUG
+private enum UnknownCaseDecodableStatus: String, UnknownCaseDecodable {
+    case new
+    case inProgress = "progress"
+    case done
+    case unknown
+}
+#endif
