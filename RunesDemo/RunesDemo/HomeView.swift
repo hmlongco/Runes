@@ -13,6 +13,7 @@ import SwiftUI
 enum Destinations: Hashable {
     case async(Int)
     case toasts
+    case scene
 }
 
 struct HomeView: View {
@@ -25,6 +26,9 @@ struct HomeView: View {
                 NavigationLink(value: Destinations.toasts) {
                     Text("Toasts Demo")
                 }
+                NavigationLink(value: Destinations.scene) {
+                    Text("Scene Demo")
+                }
             }
             .navigationDestination(for: Destinations.self) { d in
                 switch d {
@@ -32,6 +36,8 @@ struct HomeView: View {
                     AsyncDemoView(index: index)
                 case .toasts:
                     ToastsDemoView()
+                case .scene:
+                    SceneDemoView()
                 }
             }
             .navigationTitle("Runes")

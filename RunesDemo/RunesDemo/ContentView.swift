@@ -23,6 +23,7 @@ struct ContentView: View {
                 }
         }
         .overlayRoot()
+        .sceneGeometryRoot()
     }
 }
 

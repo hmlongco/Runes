@@ -30,7 +30,7 @@ public extension SharedAsyncStream {
 
     // MARK: - Internal Combine publisher (no Subjects)
 
-    private struct Publisher: Combine.Publisher {
+    private struct Publisher: Combine.Publisher, Sendable {
         typealias Output = Element
         typealias Failure = Never
 

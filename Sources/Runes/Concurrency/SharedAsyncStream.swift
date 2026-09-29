@@ -290,7 +290,7 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
         let task = lock.withLock {
             triggerLoadingTask(token: currentToken)
         }
-        return try await task.value
+        return await task.value
     }
 
     /// Returns current value if present, otherwise triggers load function and awaits result.
@@ -359,7 +359,7 @@ nonisolated final public class SharedAsyncStream<Value: Sendable>: @unchecked Se
     }
 
    internal func removeAsyncObserver(_ key: UUID) {
-        lock.withLock {
+        _ = lock.withLock {
             observers.removeValue(forKey: key)
         }
     }

@@ -18,7 +18,7 @@ extension SharedAsyncStream {
     public func assign<O: AnyObject>(_ keyPath: ReferenceWritableKeyPath<O, Element>, on observer: O) {
         let key = UUID()
         let sendableWritableKeyPath = SendableWritableKeyPath(observer: observer, keyPath: keyPath)
-        addAsyncObserver(
+        _ = addAsyncObserver(
             key: key,
             observer: observer,
             yield: { [sendableWritableKeyPath] element in
@@ -48,7 +48,7 @@ extension SharedAsyncStream {
     public func assign<O: AnyObject>(_ keyPath: ReferenceWritableKeyPath<O, Value?>, on observer: O) {
         let key = UUID()
         let sendableWritableKeyPath = SendableWritableKeyPath(observer: observer, keyPath: keyPath)
-        addAsyncObserver(
+        _ = addAsyncObserver(
             key: key,
             observer: observer,
             yield: { [sendableWritableKeyPath] element in
@@ -78,7 +78,7 @@ extension SharedAsyncStream {
     public func assign<O: AnyObject>(_ keyPath: ReferenceWritableKeyPath<O, Value>, on observer: O, defaultValue: Value) {
         let key = UUID()
         let sendableWritableKeyPath = SendableWritableKeyPath(observer: observer, keyPath: keyPath)
-        addAsyncObserver(
+        _ = addAsyncObserver(
             key: key,
             observer: observer,
             yield: { [sendableWritableKeyPath] element in

@@ -26,7 +26,9 @@ extension SharedAsyncStream {
                 }
             } else {
                 RunLoop.main.perform {
-                    onNext(element)
+                    MainActor.assumeIsolated {
+                        onNext(element)
+                    }
                 }
             }
         }
@@ -42,7 +44,7 @@ extension SharedAsyncStream {
     @discardableResult
     public func addNonisolatedObserver<O: AnyObject>(_ observer: O, onNext: @escaping YieldBlock<Element>) -> UUID {
         let key = UUID()
-        addAsyncObserver(key: key, observer: observer, yield: onNext) { [weak self] in
+        _ = addAsyncObserver(key: key, observer: observer, yield: onNext) { [weak self] in
             self?.removeAsyncObserver(key)
         }
         return key
