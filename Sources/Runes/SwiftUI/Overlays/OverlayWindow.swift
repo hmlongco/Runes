@@ -50,11 +50,13 @@ import SwiftUI
         let host = UIHostingController(
             rootView: OverlayWindowHost()
                 .environmentObject(Overlays.shared)
+                .sceneGeometryRoot()
         )
         host.view.backgroundColor = .clear
 
+        // No explicit frame: a window created with a scene tracks that scene's bounds, including
+        // resizing and moving between screens, which a fixed `scene.screen.bounds` would not.
         let overlayWindow = OverlayWindow(windowScene: scene)
-        overlayWindow.frame = scene.screen.bounds
         overlayWindow.rootViewController = host
         overlayWindow.backgroundColor = .clear
         overlayWindow.windowLevel = .alert + 1
@@ -132,21 +134,24 @@ internal struct OverlayWindowHost: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .ignoresSafeArea()
         .animation(.easeInOut(duration: 0.4), value: state.items)
     }
 }
 
 @available(macOS, unavailable)
 internal struct OverlayWindowToastView: View {
+    @Environment(\.sceneGeometry) var scene
     @State private var dragging: CGFloat = 0
     let config: Overlays.Configuration
 
     var body: some View {
         VStack {
             config.content
-                .padding(.top, 80)
-                .padding(.horizontal)
+                .frame(maxWidth: 500)
+                .padding(.top, scene.safeAreaInsets.top > 0 ? 0 : 16)
+                .padding(.leading)
+                .padding(.trailing, scene.safeAreaInsets.trailing > 0 ? 0 : 16)
+                .padding(.bottom, scene.safeAreaInsets.bottom > 0 ? 0 : 16)
                 .gesture(
                     DragGesture(minimumDistance: 10)
                         .onChanged({ value in
