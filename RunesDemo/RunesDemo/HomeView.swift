@@ -21,13 +21,13 @@ struct HomeView: View {
         NavigationStack {
             List {
                 NavigationLink(value: Destinations.async(1)) {
-                    Text("Async Demo")
-                }
-                NavigationLink(value: Destinations.toasts) {
-                    Text("Toasts Demo")
+                    demo("Async Demo", "Using the SharedAsyncStream datasource.")
                 }
                 NavigationLink(value: Destinations.scene) {
-                    Text("Scene Demo")
+                    demo("Scene Demo", "Using the sceneGeometry environment variable.")
+                }
+                NavigationLink(value: Destinations.toasts) {
+                    demo("Toasts Demo", "Presenting toasts and other overlays.")
                 }
             }
             .navigationDestination(for: Destinations.self) { d in
@@ -41,6 +41,15 @@ struct HomeView: View {
                 }
             }
             .navigationTitle("Runes")
+        }
+    }
+
+    func demo(_ title: String, _ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title)
+            Text(text)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
     }
 }
