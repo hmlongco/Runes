@@ -49,6 +49,12 @@ public final class SceneGeometry: @unchecked Sendable {
     /// This is the space the system considers safe for content, and it is `.zero` until the first layout pass.
     public internal(set) var safeAreaSize: CGSize = .zero
 
+    /// The safe area sizes of the scene in points, ordered leading to trailing, or top to bottom.
+    ///
+    /// When the device is folded so that the system divides the scene there is one safe area
+    /// size for each side of the division, otherwise the array contains the single ``safeAreaSize``.
+    public internal(set) var sizes: [CGSize] = [.zero]
+
     /// The safe area insets of the scene, in points.
     ///
     /// The values are always zero on platforms other than iOS and visionOS.
@@ -91,8 +97,29 @@ extension SceneGeometry {
     /// A Boolean value that indicates whether the horizontal size class is ``UserInterfaceSizeClass/compact``.
     public var isHorizontalCompact: Bool { horizontalSizeClass == .compact }
 
+    /// A Boolean value that indicates whether the horizontal size class is ``UserInterfaceSizeClass/regular``.
+    public var isHorizontalRegular: Bool { horizontalSizeClass == .regular }
+
     /// A Boolean value that indicates whether the vertical size class is ``UserInterfaceSizeClass/compact``.
     public var isVerticalCompact: Bool { verticalSizeClass == .compact }
+
+    /// A Boolean value that indicates whether the vertical size class is ``UserInterfaceSizeClass/regular``.
+    public var isVerticalRegular: Bool { verticalSizeClass == .regular }
+
+    // orientation
+
+    /// A Boolean value that indicates if the general layout orientation is portrait.
+    ///
+    /// Note this doesn't necessarily mean the device is rotated. For example, the general layout orientation could appear to be
+    /// portrait when running side by side in a split view.
+    public var isPortrait: Bool { size.height > size.width }
+
+    /// A Boolean value that indicates if the general layout orientation is landscape.
+    ///
+    /// Note this doesn't necessarily mean the device is rotated. For example, the general layout orientation could appear to be
+    /// landscape when running folded on a Duo.
+    public var isLandscape: Bool { size.width > size.height }
+
 }
 
 extension EnvironmentValues {
@@ -128,6 +155,41 @@ extension View {
     }
 }
 
+extension SceneGeometry {
+    /// Splits `size` around the frames of the regions that divide it.
+    ///
+    /// A divider that spans the full height splits the width into a leading and a trailing size. If there are none,
+    /// a divider that spans the full width splits the height instead. Dividers that span neither are ignored.
+    static func sizes(dividing size: CGSize, by dividers: [CGRect]) -> [CGSize] {
+        let tolerance: CGFloat = 1
+        let vertical = dividers
+            .filter { $0.height >= size.height - tolerance && $0.width < size.width }
+            .sorted { $0.minX < $1.minX }
+        let horizontal = dividers
+            .filter { $0.width >= size.width - tolerance && $0.height < size.height }
+            .sorted { $0.minY < $1.minY }
+
+        var sizes: [CGSize] = []
+        var start: CGFloat = 0
+        if !vertical.isEmpty {
+            for divider in vertical {
+                sizes.append(CGSize(width: divider.minX - start, height: size.height))
+                start = max(start, divider.maxX)
+            }
+            sizes.append(CGSize(width: size.width - start, height: size.height))
+            sizes = sizes.filter { $0.width > 0 }
+        } else if !horizontal.isEmpty {
+            for divider in horizontal {
+                sizes.append(CGSize(width: size.width, height: divider.minY - start))
+                start = max(start, divider.maxY)
+            }
+            sizes.append(CGSize(width: size.width, height: size.height - start))
+            sizes = sizes.filter { $0.height > 0 }
+        }
+        return sizes.isEmpty ? [size] : sizes
+    }
+}
+
 struct SceneGeometryModifier: ViewModifier {
     @State private var sceneGeometry = SceneGeometry()
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -145,12 +207,13 @@ struct SceneGeometryModifier: ViewModifier {
                     let insets = EdgeInsets()
                     #endif
                     Color.clear
-                        .onChange(of: Measurement(safeSize: proxy.size, insets: insets), initial: true) { _, new in
+                        .onChange(of: Measurement(safeSize: proxy.size, insets: insets, dividers: dividers(in: proxy)), initial: true) { _, new in
                             sceneGeometry.size = CGSize(
                                 width: new.safeSize.width + new.insets.leading + new.insets.trailing,
                                 height: new.safeSize.height + new.insets.top + new.insets.bottom
                             )
                             sceneGeometry.safeAreaSize = new.safeSize
+                            sceneGeometry.sizes = SceneGeometry.sizes(dividing: new.safeSize, by: new.dividers)
                             sceneGeometry.safeAreaInsets = new.insets
                         }
                 }
@@ -166,5 +229,16 @@ struct SceneGeometryModifier: ViewModifier {
     private struct Measurement: Equatable {
         let safeSize: CGSize
         let insets: EdgeInsets
+        let dividers: [CGRect]
+    }
+
+    /// The frames of the regions the system uses to divide the scene, in the coordinate space of the reader.
+    private func dividers(in proxy: GeometryProxy) -> [CGRect] {
+        #if canImport(SwiftUICore, _version: 8.0.85)
+        if #available(anyAppleOS 27.1, *) {
+            return proxy.reservedRegions(kind: .division).map(\.frame)
+        }
+        #endif
+        return []
     }
 }
