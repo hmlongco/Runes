@@ -8,7 +8,7 @@
 import SwiftUI
 
 @available(macOS, unavailable)
-public struct Toast: View {
+public struct Toast: ToastViews {
 
     public static var defaultBackgroundColor: Color = .blue
     public static var defaultForegroundColor: Color = .white

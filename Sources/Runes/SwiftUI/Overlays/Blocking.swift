@@ -13,7 +13,7 @@ public protocol Blocking {
 
 @available(macOS, unavailable)
 extension EnvironmentValues {
-    @Entry public var blocking: Blocking = Overlays.shared
+    @Entry public var blocking: Blocking = MissingOverlays()
 }
 
 extension View {
@@ -24,12 +24,13 @@ extension View {
 
 @available(macOS, unavailable)
 private struct BlockingOverlayModifier: ViewModifier {
+    @Environment(\.blocking) private var blocking
     var isPresented: Bool
 
     func body(content: Content) -> some View {
         content
             .onChange(of: isPresented) {
-                Overlays.shared.blocking(isPresented)
+                blocking.blocking(isPresented)
             }
     }
 }

@@ -8,48 +8,25 @@
 import Combine
 import SwiftUI
 
+/// Owns the overlay state and the overlay window for one scene. Each `overlayRoot()` creates one.
 @available(macOS, unavailable)
-@MainActor internal final class OverlayWindowManager {
-    static let shared = OverlayWindowManager()
+@MainActor internal final class SceneOverlayController {
+    let overlays = Overlays()
     private var window: OverlayWindow?
     private var cancellable: AnyCancellable?
 
-    private init() {
-        createPersistentWindow()
+    // Kept cheap on purpose: SwiftUI can run `@State` initializers on every body evaluation.
+    init() {}
 
-        // Observe overlay items and choose interaction mode
-        cancellable = Overlays.shared.$items
-            .receive(on: RunLoop.main)
-            .sink { [weak self] items in
-                guard let self, let window = self.window else { return }
-
-                let hasBlocking = items.contains {
-                    if case .blocking(true) = $0 { return true } else { return false }
-                }
-                let hasToast = items.contains {
-                    if case .toast = $0 { return true } else { return false }
-                }
-                
-                if hasBlocking {
-                    window.interactionMode = .blockAll
-                } else if hasToast {
-                    window.interactionMode = .overlaysOnly
-                } else {
-                    window.interactionMode = .passthrough
-                }
-            }
-    }
-
-    private func createPersistentWindow() {
-        guard window == nil else { return }
-
-        guard let scene = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .first else { return }
+    /// Creates the overlay window in `scene`, or removes it when `scene` is `nil`.
+    func attach(to scene: UIWindowScene?) {
+        guard scene !== window?.windowScene else { return }
+        detach()
+        guard let scene else { return }
 
         let host = UIHostingController(
             rootView: OverlayWindowHost()
-                .environmentObject(Overlays.shared)
+                .environmentObject(overlays)
                 .sceneGeometryRoot()
         )
         host.view.backgroundColor = .clear
@@ -63,9 +40,75 @@ import SwiftUI
         overlayWindow.isHidden = false
         overlayWindow.makeKeyAndVisible()
 
-        overlayWindow.interactionMode = .passthrough
-
         self.window = overlayWindow
+        updateInteractionMode(overlays.items)
+
+        // Observe overlay items and choose interaction mode
+        cancellable = overlays.$items
+            .receive(on: RunLoop.main)
+            .sink { [weak self] items in
+                self?.updateInteractionMode(items)
+            }
+    }
+
+    func detach() {
+        cancellable = nil
+        window?.isHidden = true
+        window = nil
+    }
+
+    private func updateInteractionMode(_ items: [Overlays.Item]) {
+        guard let window else { return }
+
+        let hasBlocking = items.contains {
+            if case .blocking(true) = $0 { return true } else { return false }
+        }
+        let hasToast = items.contains {
+            if case .toast = $0 { return true } else { return false }
+        }
+
+        if hasBlocking {
+            window.interactionMode = .blockAll
+        } else if hasToast {
+            window.interactionMode = .overlaysOnly
+        } else {
+            window.interactionMode = .passthrough
+        }
+    }
+}
+
+/// Reports the window scene that hosts the view it is attached to, so each root gets its own overlay window.
+@available(macOS, unavailable)
+internal struct OverlaySceneReader: UIViewRepresentable {
+    let controller: SceneOverlayController
+
+    func makeUIView(context: Context) -> SceneReaderView {
+        SceneReaderView(controller: controller)
+    }
+
+    func updateUIView(_ uiView: SceneReaderView, context: Context) {}
+
+    static func dismantleUIView(_ uiView: SceneReaderView, coordinator: ()) {
+        uiView.controller.detach()
+    }
+
+    @MainActor internal final class SceneReaderView: UIView {
+        let controller: SceneOverlayController
+
+        init(controller: SceneOverlayController) {
+            self.controller = controller
+            super.init(frame: .zero)
+            isUserInteractionEnabled = false
+        }
+
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            controller.attach(to: window?.windowScene)
+        }
     }
 }
 
@@ -140,6 +183,7 @@ internal struct OverlayWindowHost: View {
 
 @available(macOS, unavailable)
 internal struct OverlayWindowToastView: View {
+    @EnvironmentObject private var overlays: Overlays
     @Environment(\.sceneGeometry) var scene
     @State private var dragging: CGFloat = 0
     let config: Overlays.Configuration
@@ -148,10 +192,10 @@ internal struct OverlayWindowToastView: View {
         VStack {
             config.content
                 .frame(maxWidth: 500)
-                .padding(.top, scene.safeAreaInsets.top > 0 ? 0 : 16)
-                .padding(.leading)
-                .padding(.trailing, scene.safeAreaInsets.trailing > 0 ? 0 : 16)
-                .padding(.bottom, scene.safeAreaInsets.bottom > 0 ? 0 : 16)
+                .padding(.top, scene.hasTop ? 0 : 16)
+                .padding(.leading, 16)
+                .padding(.trailing, scene.hasTrailing ? 0 : 16)
+                .padding(.bottom, scene.hasBottom ? 0 : 16)
                 .gesture(
                     DragGesture(minimumDistance: 10)
                         .onChanged({ value in
@@ -159,12 +203,12 @@ internal struct OverlayWindowToastView: View {
                         })
                         .onEnded { value in
                             if abs(dragging) > 20 {
-                                Overlays.shared.dismissToast(id: config.id)
+                                overlays.dismissToast(id: config.id)
                             }
                         }
                 )
                 .onTapGesture {
-                    Overlays.shared.dismissToast(id: config.id)
+                    overlays.dismissToast(id: config.id)
                 }
                .offset(y: -dragging)
             Spacer()

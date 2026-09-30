@@ -29,6 +29,9 @@ struct ToastsDemoView: View {
 
     @State private var isBlocking = false
     @State private var toast: MyToasts?
+    @State private var string: String?
+    @State private var errorString: String?
+    @State private var error: Error?
 
     init() {
         Toast.defaultForegroundColor = .black
@@ -42,6 +45,10 @@ struct ToastsDemoView: View {
                     toasts.toast("A toast", icon: "info.circle.fill")
                     toasts.toast("Another toast", icon: "info.circle.fill")
                 }
+                Button("Trigger Message String Toast Binding") {
+                    string = "This was a bound toast message."
+                }
+                .toast($string)
                 Button("Trigger Message Toast Binding") {
                     toast = .message("This was a bound toast message.")
                 }
@@ -50,9 +57,14 @@ struct ToastsDemoView: View {
                 Button("Trigger Programatic Error") {
                     toasts.toast(error: "This is an error message.")
                 }
-                Button("Trigger Toast Error Binding") {
-                    toast = .error("This is an error message.")
+                Button("Trigger Toast String Error Binding") {
+                    errorString = "This is some error text."
                 }
+                .toast(error: $errorString)
+                Button("Trigger Toast Error Binding") {
+                    error = URLError(.unknown)
+                }
+                .toast(error: $error)
             }
             Section {
                 Button("Toggle Blocking (Timeout)") {

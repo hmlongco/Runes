@@ -10,23 +10,21 @@ import SwiftUI
 @available(macOS, unavailable)
 public final class Overlays: ObservableObject, Toasts, Blocking, @unchecked Sendable {
 
-    public static let shared = Overlays()
-
     @MainActor @Published var items: [Item] = []
 
     // MARK: Toast queue state
     private var toastQueue: [Configuration] = []
     private var currentToastToken: UUID? = nil
 
-    private init() {}
+    internal init() {}
 
     // MARK: Public API
 
     @MainActor public func blocking(_ isPresented: Bool) {
         if isPresented {
-            Overlays.shared.show(.blocking(true))
+            show(.blocking(true))
         } else {
-            Overlays.shared.hide(.blocking(false))
+            hide(.blocking(false))
         }
     }
 
@@ -143,10 +141,41 @@ extension Overlays {
     }
 }
 
+/// Stands in for `Overlays` when a view has no `overlayRoot()` above it. Calls do nothing.
+@available(macOS, unavailable)
+internal struct MissingOverlays: Toasts, Blocking {
+    @MainActor func toast(duration: TimeInterval, content: () -> some View) { warn() }
+    @MainActor func toast(duration: TimeInterval, _ view: some ToastViews) { warn() }
+    @MainActor func dismiss() { warn() }
+    @MainActor func blocking(_ isPresented: Bool) { warn() }
+
+    private func warn() {
+        #if DEBUG
+        print("Runes: overlays used without an overlayRoot() above the view; nothing will be shown.")
+        #endif
+    }
+}
+
 @available(macOS, unavailable)
 extension View {
+    /// Gives the scene this view is in its own toast and blocking overlays.
+    ///
+    /// Apply this modifier once, at the root of each scene. Each scene gets its own overlay window and its own
+    /// state, so a toast triggered from one scene never appears in another. Descendants present overlays through
+    /// the `toasts` and `blocking` environment values, or the `toast(_:duration:)` and `blocking(_:)` modifiers.
     public func overlayRoot() -> some View {
-        let _ = OverlayWindowManager.shared // ensure window created
-        return self
+        self.modifier(OverlayRootModifier())
+    }
+}
+
+@available(macOS, unavailable)
+private struct OverlayRootModifier: ViewModifier {
+    @State private var controller = SceneOverlayController()
+
+    func body(content: Content) -> some View {
+        content
+            .environment(\.toasts, controller.overlays)
+            .environment(\.blocking, controller.overlays)
+            .background(OverlaySceneReader(controller: controller))
     }
 }
