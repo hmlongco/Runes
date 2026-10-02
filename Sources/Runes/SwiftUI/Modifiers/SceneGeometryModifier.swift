@@ -155,7 +155,34 @@ extension View {
     }
 }
 
+struct SceneGeometryModifier: ViewModifier {
+    @State private var sceneGeometry = SceneGeometry()
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+
+    func body(content: Content) -> some View {
+        content
+            .environment(\.sceneGeometry, sceneGeometry)
+            .onGeometryChange(for: Measurement.self, of: Measurement.init(proxy:)) { new in
+                sceneGeometry.size = CGSize(
+                    width: new.safeSize.width + new.insets.leading + new.insets.trailing,
+                    height: new.safeSize.height + new.insets.top + new.insets.bottom
+                )
+                sceneGeometry.safeAreaSize = new.safeSize
+                sceneGeometry.sizes = SceneGeometry.sizes(dividing: new.safeSize, by: new.dividers)
+                sceneGeometry.safeAreaInsets = new.insets
+            }
+            .onChange(of: horizontalSizeClass, initial: true) { _, newValue in
+                sceneGeometry.horizontalSizeClass = newValue
+            }
+            .onChange(of: verticalSizeClass, initial: true) { _, newValue in
+                sceneGeometry.verticalSizeClass = newValue
+            }
+    }
+}
+
 extension SceneGeometry {
+
     /// Splits `size` around the frames of the regions that divide it.
     ///
     /// A divider that spans the full height splits the width into a leading and a trailing size. If there are none,
@@ -190,55 +217,25 @@ extension SceneGeometry {
     }
 }
 
-struct SceneGeometryModifier: ViewModifier {
-    @State private var sceneGeometry = SceneGeometry()
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @Environment(\.verticalSizeClass) private var verticalSizeClass
+private struct Measurement: Equatable, Sendable {
+    let safeSize: CGSize
+    let insets: EdgeInsets
+    let dividers: [CGRect]
 
-    func body(content: Content) -> some View {
-        content
-            .environment(\.sceneGeometry, sceneGeometry)
-            .background {
-                // A reader that respects the safe area reports the safe size plus the real insets, without touching content layout.
-                GeometryReader { proxy in
-                    #if os(iOS) || os(visionOS)
-                    let insets = proxy.safeAreaInsets
-                    #else
-                    let insets = EdgeInsets()
-                    #endif
-                    Color.clear
-                        .onChange(of: Measurement(safeSize: proxy.size, insets: insets, dividers: dividers(in: proxy)), initial: true) { _, new in
-                            sceneGeometry.size = CGSize(
-                                width: new.safeSize.width + new.insets.leading + new.insets.trailing,
-                                height: new.safeSize.height + new.insets.top + new.insets.bottom
-                            )
-                            sceneGeometry.safeAreaSize = new.safeSize
-                            sceneGeometry.sizes = SceneGeometry.sizes(dividing: new.safeSize, by: new.dividers)
-                            sceneGeometry.safeAreaInsets = new.insets
-                        }
-                }
-            }
-            .onChange(of: horizontalSizeClass, initial: true) { _, newValue in
-                sceneGeometry.horizontalSizeClass = newValue
-            }
-            .onChange(of: verticalSizeClass, initial: true) { _, newValue in
-                sceneGeometry.verticalSizeClass = newValue
-            }
-    }
-
-    private struct Measurement: Equatable {
-        let safeSize: CGSize
-        let insets: EdgeInsets
-        let dividers: [CGRect]
-    }
-
-    /// The frames of the regions the system uses to divide the scene, in the coordinate space of the reader.
-    private func dividers(in proxy: GeometryProxy) -> [CGRect] {
+    init(proxy: GeometryProxy) {
+        safeSize = proxy.size
+        #if os(iOS) || os(visionOS)
+        insets = proxy.safeAreaInsets
+        #else
+        insets = EdgeInsets()
+        #endif
+        // The frames of the regions the system uses to divide the scene, in the coordinate space of the proxy.
         #if canImport(SwiftUICore, _version: 8.0.85)
         if #available(anyAppleOS 27.1, *) {
-            return proxy.reservedRegions(kind: .division).map(\.frame)
+            dividers = proxy.reservedRegions(kind: .division).map(\.frame)
+            return
         }
         #endif
-        return []
+        dividers = []
     }
 }
