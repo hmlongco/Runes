@@ -15,7 +15,7 @@ struct SceneDemoView: View {
 
     var body: some View {
         ScrollView {
-            if sceneGeometry.isHorizontalRegular {
+            if sceneGeometry.isHorizontalRegular && sceneGeometry.isLandscape {
                 HStack(alignment: .top, spacing: PADDING) {
                     VStack(spacing: PADDING) {
                         orientationCard
@@ -31,7 +31,6 @@ struct SceneDemoView: View {
                         insetsCard
                         widthCard
                     }
-                    .frame(maxWidth: .infinity)
                 }
                 .padding(PADDING)
             } else {
@@ -51,9 +50,9 @@ struct SceneDemoView: View {
     }
 
     private var firstColumnWidth: CGFloat {
-        if sceneGeometry.isLandscape && sceneGeometry.sizes.count > 1 {
+        if sceneGeometry.sizes.count > 1 {
             // first safe area width
-            sceneGeometry.sizes.first?.width ?? 0
+            (sceneGeometry.sizes.first?.width ?? 0) - (PADDING / 2)
         } else {
             // divide in half after subtracting padding
             (sceneGeometry.safeAreaSize.width - (PADDING * 3)) / 2
