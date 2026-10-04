@@ -223,19 +223,28 @@ private struct Measurement: Equatable, Sendable {
     let dividers: [CGRect]
 
     init(proxy: GeometryProxy) {
-        safeSize = proxy.size
-        #if os(iOS) || os(visionOS)
-        insets = proxy.safeAreaInsets
-        #else
-        insets = EdgeInsets()
-        #endif
         // The frames of the regions the system uses to divide the scene, in the coordinate space of the proxy.
+        var dividers: [CGRect] = []
         #if canImport(SwiftUICore, _version: 8.0.85)
         if #available(anyAppleOS 27.1, *) {
             dividers = proxy.reservedRegions(kind: .division).map(\.frame)
-            return
         }
         #endif
-        dividers = []
+        self.dividers = dividers
+
+        // temp shim for iPhone Duo and iOS 27.1 when app is located in leading split view
+        var needDuoInsetShim = false
+        if #available(anyAppleOS 27.1, *) {
+            let badDuoSplitViewWidth = 469
+            needDuoInsetShim = Int(proxy.size.width) == badDuoSplitViewWidth && proxy.safeAreaInsets.trailing == 0
+        }
+
+        if needDuoInsetShim {
+            self.safeSize = CGSize(width: 385, height: 635)
+            self.insets = EdgeInsets(top: 0, leading: 84, bottom: 34, trailing: 0)
+        } else {
+            self.safeSize = proxy.size
+            self.insets = proxy.safeAreaInsets
+        }
     }
 }
