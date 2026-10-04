@@ -1,5 +1,9 @@
 # Runes Changelog
 
+### Release 1.0.1
+
+* Leading inset shim for iPhone Duo when app is located in leading split view
+
 ### Release 1.0.0
 
 * Adds SceneGeometry reader and environment variables
