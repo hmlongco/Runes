@@ -235,11 +235,15 @@ private struct Measurement: Equatable, Sendable {
         // temp shim for iPhone Duo and iOS 27.1 when app is located in leading split view
         var needDuoInsetShim = false
         if #available(anyAppleOS 27.1, *) {
+            let badDuoSplitViewWHeight = 635
             let badDuoSplitViewWidth = 469
-            needDuoInsetShim = Int(proxy.size.width) == badDuoSplitViewWidth
+            needDuoInsetShim = Int(proxy.size.height) == badDuoSplitViewWHeight
+                && Int(proxy.size.width) == badDuoSplitViewWidth
                 && proxy.safeAreaInsets.leading == 0
                 && proxy.safeAreaInsets.trailing == 0
         }
+
+        print(Int(proxy.size.height))
 
         if needDuoInsetShim {
             self.safeSize = CGSize(width: 385, height: 635)
