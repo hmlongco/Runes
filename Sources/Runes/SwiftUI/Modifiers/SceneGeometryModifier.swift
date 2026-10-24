@@ -243,8 +243,6 @@ private struct Measurement: Equatable, Sendable {
                 && proxy.safeAreaInsets.trailing == 0
         }
 
-        print(Int(proxy.size.height))
-
         if needDuoInsetShim {
             self.safeSize = CGSize(width: 385, height: 635)
             self.insets = EdgeInsets(top: 0, leading: 84, bottom: 34, trailing: 0)
