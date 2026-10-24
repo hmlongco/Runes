@@ -1,5 +1,9 @@
 # Runes Changelog
 
+### Release 1.0.2
+
+* Fix insets for iPhone Duo Toasts when app is located in split view
+
 ### Release 1.0.1
 
 * Leading inset shim for iPhone Duo when app is located in leading split view

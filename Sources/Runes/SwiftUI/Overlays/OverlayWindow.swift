@@ -193,8 +193,8 @@ internal struct OverlayWindowToastView: View {
             config.content
                 .frame(maxWidth: 500)
                 .padding(.top, scene.hasTop ? 0 : 16)
-                .padding(.leading, 16)
-                .padding(.trailing, scene.hasTrailing ? 0 : 16)
+                .padding(.leading, scene.safeAreaInsets.leading + (scene.hasLeading ? 0 : 18))
+                .padding(.trailing, scene.safeAreaInsets.trailing + (scene.hasTrailing ? 0 : 18))
                 .padding(.bottom, scene.hasBottom ? 0 : 16)
                 .gesture(
                     DragGesture(minimumDistance: 10)
@@ -214,6 +214,7 @@ internal struct OverlayWindowToastView: View {
             Spacer()
         }
         .transition(.move(edge: .top).combined(with: .opacity))
+        .ignoresSafeArea(edges: .horizontal)
     }
 }
 

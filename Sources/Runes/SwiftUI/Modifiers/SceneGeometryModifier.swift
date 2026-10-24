@@ -236,7 +236,9 @@ private struct Measurement: Equatable, Sendable {
         var needDuoInsetShim = false
         if #available(anyAppleOS 27.1, *) {
             let badDuoSplitViewWidth = 469
-            needDuoInsetShim = Int(proxy.size.width) == badDuoSplitViewWidth && proxy.safeAreaInsets.trailing == 0
+            needDuoInsetShim = Int(proxy.size.width) == badDuoSplitViewWidth
+                && proxy.safeAreaInsets.leading == 0
+                && proxy.safeAreaInsets.trailing == 0
         }
 
         if needDuoInsetShim {
